@@ -25,7 +25,7 @@ st_layers(here("prac_3", "Data", "gadm41_CHN.gpkg"))
 Chnoutline <- st_read(here("prac_3", "Data", "gadm41_CHN.gpkg"), 
                       layer='ADM_ADM_0')
 
-Chnoutline <- Chnoutline[Chnoutline$GID_0 == "CHN", ]
+# Chnoutline <- Chnoutline[Chnoutline$GID_0 == "CHN", ]
 
 # print(Chnoutline)
 
@@ -71,13 +71,43 @@ China_cities <- world_cities %>%
 # ssp1
 ```
 
+## Crop and mask rasters
+
+```{r}
+# ssp1
+
+ssp1_crop <- ssp1 %>%
+  # now crop our temp data to the extent
+  terra::crop(.,Chnoutline)
+
+ssp1_mask <- ssp1_crop %>%
+  terra::mask(.,Chnoutline)
+
+# ssp5
+
+ssp5_crop <- ssp5 %>%
+  # now crop our temp data to the extent
+  terra::crop(.,Chnoutline)
+
+ssp5_mask <- ssp5_crop %>%
+  terra::mask(.,Chnoutline)
+```
+
+## Extract rasters
+
+```{r}
+# Chn_city_temp_1 <- terra::extract(ssp1, China_cities)
+# 
+# Chn_city_temp_5 <- terra::extract(ssp5, China_cities)
+
+Chn_city_temp_1 <- terra::extract(ssp1_mask, China_cities)
+
+Chn_city_temp_5 <- terra::extract(ssp5_mask, China_cities)
+```
+
 ## Descriptive (or summary) statistics
 
 ```{r}
-Chn_city_temp_1 <- terra::extract(ssp1, China_cities)
-
-Chn_city_temp_5 <- terra::extract(ssp5, China_cities)
-
 Chn_city_temp_1 <- Chn_city_temp_1 %>%
   as_tibble() %>%
   add_column(City = China_cities$city_name, .before = "Jan")
