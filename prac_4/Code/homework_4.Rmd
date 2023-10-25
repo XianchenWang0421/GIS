@@ -1,0 +1,74 @@
+---
+title: "homework_4"
+author: "Xianchen Wang"
+date: "2023-10-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read global gender inequality data
+
+```{r}
+library(sf)
+library(here)
+library(tidyverse)
+library(janitor)
+library(countrycode)
+
+ggi <- read_csv(here("prac_4", "Data", "HDR21-22_Composite_indices_complete_time_series.csv"), na= "")
+
+sdw <- st_read(here("prac_4", "Data", "World_Countries_Generalized", "World_Countries_Generalized.shp"))
+
+ggi <- ggi %>%
+  clean_names()
+sdw <- sdw %>%
+  clean_names()
+
+```
+
+## Join ggi to sdw, creating new column
+
+```{r}
+ggi_2 <- head(ggi, n = nrow(ggi) - 11)
+
+ggi_2 <- ggi_2 %>%
+  mutate(iso2 = countrycode(iso3, origin="iso3c", destination="iso2c")) %>%
+  select(iso2, iso3, gii_2010, gii_2011, gii_2012, gii_2013, gii_2014,
+         gii_2015, gii_2016, gii_2017, gii_2018, gii_2019)
+
+columns_to_average <- c("gii_2010", "gii_2011", "gii_2012", "gii_2013",
+                        "gii_2014", "gii_2015", "gii_2016", "gii_2017",
+                        "gii_2018", "gii_2019")
+
+ggi_2 <- ggi_2 %>%
+  mutate(difference = rowMeans(ggi_2[columns_to_average]))
+
+sdw_ggi_2 <- sdw %>%
+  left_join(.,
+            ggi_2,
+            by = c("iso" = "iso2"))
+
+sdw_ggi_2$difference <- replace(sdw_ggi_2$difference, is.na(sdw_ggi_2$difference), 0)
+```
+
+## Mapping
+
+```{r}
+ggplot(data = sdw_ggi_2) +
+  geom_sf(aes(fill = difference), color = "black", size = .5) + 
+  scale_fill_gradient(low = "white", high = "red", name="Value of gender inequality") +
+  labs(title="Difference in global gender inequality between 2010 and 2019") +
+  theme(plot.title = element_text(hjust = 0.5, size = 10),
+        plot.background = element_rect(fill = "#f5f5f2", color = NA),
+        panel.background = element_rect(fill = "#f5f5f2", color = NA),
+        panel.grid = element_blank(),
+        legend.background = element_rect(fill = "#f5f5f2", color = NA),
+        legend.text = element_text(size = 7)
+  )
+ggsave(here::here("prac_4","Map","World.jpeg"))
+```
+
+

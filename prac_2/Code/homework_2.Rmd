@@ -1,0 +1,208 @@
+---
+title: "homework_2"
+author: "Xianchen Wang"
+date: "2023-10-11"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Data loading
+
+```{r}
+library(sf)
+library(here)
+library(tidyverse)
+library(janitor)
+library(dplyr)
+library(tmap)
+
+WC <- st_read(here::here("prac_2",
+              "Data",
+              "Washington_Counties_with_Natural_Shoreline___washsh_area",
+              "Washington_Counties_with_Natural_Shoreline___washsh_area.shp"))
+#plot(WC)
+#summary(WC)
+
+SchoolData <- read_csv(here::here("prac_2",
+                       "Data",
+                       "Report_Card_Assessment_Data_2018-19_School_Year.csv"),
+                       locale = locale(encoding = "latin1"),
+                       na = c("NULL", "None"))
+#class(SchoolData)
+```
+
+## Data cleaning
+
+```{r}
+Datatypelist <- SchoolData %>%
+  summarise_all(class) %>%
+  pivot_longer(everything(), 
+               names_to="All_variables", 
+               values_to="Variable_class")
+#Datatypelist
+#summary(SchoolData)
+
+SchoolData <- SchoolData %>%
+  clean_names()
+#summary(SchoolData)
+
+```
+
+## Data manipulate
+
+First method, calculate each row average passing rate, then calculate WC average passing rate, finally group by.
+
+$$ \frac{A+B}{C+D} \neq \frac{A}{C} + \frac{B}{D} $$
+
+```{r}
+SchoolData_1 <- SchoolData %>%
+  replace_na(list(count_met_standard = 0, count_of_students_expected_to_test = 1))
+#slice_head(SchoolData, n=60)
+
+Passing_rate_row_group_average <- SchoolData_1 %>%
+  mutate(row_averagepassingrate = count_met_standard/
+                                  count_of_students_expected_to_test) %>%
+  group_by(county) %>%
+  summarise(count=n(), averagepassingrate = sum(row_averagepassingrate)) %>%
+  mutate(WC_passing_rate = mean(averagepassingrate)) %>%
+  mutate(rate_compare = case_when(averagepassingrate - WC_passing_rate > 0 ~ "above", TRUE ~ "below"))
+  
+  #mutate(disparity= averagepassingrate - WC_passing_rate) %>%
+  #dplyr::select(county, averagepassingrate, disparity, WC_passing_rate) #%>%
+  #arrange(disparity)
+```
+
+## Mapping_1
+
+```{r}
+gradesMap_1 <- WC %>%
+  clean_names() %>%
+  left_join(.,
+            Passing_rate_row_group_average,
+            by = c("countylabe" = "county"))
+  
+tmap_mode("plot")
+# map_1 <- qtm(gradesMap_1, fill = "rate_compare")
+# tmap_save(map_1, 
+#            "D:/CASA/CASA_0005/practical/prac_2/Map/Passing_rate_row_group_average_map.jpeg", 
+#            dpi=600)
+map_1 <- tm_shape(gradesMap_1)+
+  tm_borders() +
+  tm_fill(col = 'rate_compare',
+          palette = c("Above" = "blue", "Below" = "red"),
+          title = "Above or Below") +
+  tm_compass(position = c("left", "bottom"),type = "arrow") +
+  tm_layout(title = "WC_1",
+            legend.position = c("right", "bottom"))
+tmap_save(map_1, here::here("prac_2","Map","Passing_rate_row_group_average_map.jpeg"), dpi=600)
+
+```
+
+## Data manipulate
+
+Second method, group by first then use average passing rate calculating WC passing rate.
+
+$$ \frac{A+B}{C+D} \neq \frac{\frac{A}{C} + \frac{B}{D}}{2} $$
+
+```{r}
+SchoolData_2 <- SchoolData %>%
+  replace_na(list(count_met_standard = 0, count_of_students_expected_to_test = 0))
+
+Passing_rate_group_average <- SchoolData_2 %>%
+  group_by(county) %>%
+  summarise(count=n(), count_met_standard_all = sum(count_met_standard),
+            count_all = sum(count_of_students_expected_to_test)) %>%
+  mutate(averagepassingrate = count_met_standard_all / count_all) %>%
+  mutate(WC_passing_rate = mean(averagepassingrate)) %>%
+  mutate(rate_compare = case_when(averagepassingrate - WC_passing_rate > 0 ~ "above", TRUE ~ "below"))
+
+```
+
+## Mapping_2
+
+```{r}
+gradesMap_2 <- WC %>%
+  clean_names() %>%
+  left_join(.,
+            Passing_rate_group_average,
+            by = c("countylabe" = "county"))
+
+tmap_mode("plot")
+# tm_shape(gradesMap_2) +
+#   tm_borders() +
+#   tm_fill(col = "rate_compare",
+#           palette = c("Above" = "blue", "Below" = "red"),
+#           title = "Above or Below")
+map_2 <- tm_shape(gradesMap_2)+
+  tm_borders() +
+  tm_fill(col = 'rate_compare',
+          palette = c("Above" = "blue", "Below" = "red"),
+          title = "Above or Below") +
+  tm_compass(position = c("left", "bottom"),type = "arrow") +
+  tm_layout(title = "WC_2",
+            legend.position = c("right", "bottom"))
+tmap_save(map_2, here::here("prac_2","Map","Passing_rate_group_average_map.jpeg"), dpi=600)
+```
+
+## Data manipulate
+
+Third method, group by first then use all count and all met standard count calculating WC passing rate.
+
+Is correct!
+
+```{r}
+SchoolData_3 <- SchoolData %>%
+  filter(., test_subject == "Science") %>%
+  filter(., grade_level == "All Grades") %>%
+  filter(., count_of_students_expected_to_test != "NA") %>%
+  filter(., county != "Multiple") %>%
+  filter(., organization_level == "School")
+
+# SchoolData_3 <- SchoolData %>%
+#   replace_na(list(count_met_standard = 0, count_of_students_expected_to_test = 0))
+
+Passing_rate_group_count <- SchoolData_3 %>%
+  group_by(county) %>%
+  summarise(count=n(), count_met_standard_all = sum(count_met_standard),
+            count_all = sum(count_of_students_expected_to_test)) %>%
+  mutate(averagepassingrate = count_met_standard_all / count_all) %>%
+  # mutate(WC_passing_rate = mean(averagepassingrate)) %>%
+  mutate(WC_passing_rate = sum(count_met_standard_all) / sum(count_all)) %>%
+  mutate(rate_compare = case_when(averagepassingrate - WC_passing_rate > 0 ~ "above", TRUE ~ "below"))
+
+```
+
+## Mapping_3
+
+```{r}
+gradesMap_3 <- WC %>%
+  clean_names() %>%
+  left_join(.,
+            Passing_rate_group_count,
+            by = c("countylabe" = "county"))
+
+tmap_mode("plot")
+ tm_shape(gradesMap_3) +
+   tm_borders() +
+   tm_fill(col = "rate_compare",
+           palette = c("Above" = "blue", "Below" = "red"),
+           title = "Above or Below")
+ map_3 <- tm_shape(gradesMap_3) +
+   tm_borders() +
+   tm_fill(col = 'rate_compare',
+           palette = c("Above" = "blue", "Below" = "red"),
+           title = "Above or Below") +
+   tm_compass(position = c("left", "bottom"),type = "arrow") +
+   tm_layout(title = "WC_3",
+             legend.position = c("right", "bottom"))
+# qtm(gradesMap_3, fill='rate_compare')
+# ggplot(data = gradesMap_3) +
+#   geom_sf(aes(fill = rate_compare), # 将income映射到填充颜色上
+#           color = "black",  # 轮廓颜色
+#           size = .5) + # 轮廓粗细
+#   theme_minimal()
+# ggsave(here::here("prac_2","Map","Passing_rate_group_count_map.jpeg"))
+#tmap_save(map_3, "D:/CASA/CASA_0005/practical/prac_2/Map/1Passing_rate_group_count_map.jpeg")
+tmap_save(map_3, here::here("prac_2","Map","Passing_rate_group_count_map.jpeg"))
+```

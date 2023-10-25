@@ -1,0 +1,30 @@
+---
+title: "practical_4"
+author: "Xianchen Wang"
+date: "2023-10-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## command
+
+```{r}
+# installed.packages("usethis")
+
+library(usethis)
+
+use_git()
+
+# install.packages("gitcreds")
+
+library(gitcreds)
+
+gitcreds_set()
+
+use_github()
+
+```
+

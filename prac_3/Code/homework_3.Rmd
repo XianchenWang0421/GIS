@@ -1,0 +1,171 @@
+---
+title: "homework_3"
+author: "Xianchen Wang"
+date: "2023-10-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## read GeoPackage, CSV file, Raster data 
+
+```{r}
+library(sf)
+library(here)
+library(raster)
+library(terra)
+library(tidyverse)
+library(janitor)
+library(dplyr)
+
+st_layers(here("prac_3", "Data", "gadm41_CHN.gpkg"))
+
+Chnoutline <- st_read(here("prac_3", "Data", "gadm41_CHN.gpkg"), 
+                      layer='ADM_ADM_0')
+
+Chnoutline <- Chnoutline[Chnoutline$GID_0 == "CHN", ]
+
+# print(Chnoutline)
+
+# plot(Chnoutline)
+
+ssp1 <- terra::rast(here("prac_3", "Data", "CM","wc2.1_2.5m_tmax_ACCESS-CM2_ssp126_2081-2100.tif"))
+
+ssp2 <- terra::rast(here("prac_3", "Data", "CM","wc2.1_2.5m_tmax_ACCESS-CM2_ssp245_2081-2100.tif"))
+
+ssp3 <- terra::rast(here("prac_3", "Data", "CM","wc2.1_2.5m_tmax_ACCESS-CM2_ssp370_2081-2100.tif"))
+
+ssp5 <- terra::rast(here("prac_3", "Data", "CM","wc2.1_2.5m_tmax_ACCESS-CM2_ssp585_2081-2100.tif"))
+
+# ssp1[[1]]
+
+month <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+names(ssp1) <- month
+
+names(ssp5) <- month
+
+# ssp1$Jan
+
+world_cities <- st_read(here("prac_3", "Data", "World_Cities", "World_Cities.shp"))
+
+```
+
+## Data manipulate
+
+```{r}
+# Datatypelist <- world_cities %>% 
+#   summarise_all(class)
+# Datatypelist
+
+world_cities <- world_cities %>%
+  clean_names()
+
+China_cities <- world_cities %>%
+  filter(., cntry_name == 'China')
+
+# print(China_cities)
+# ssp1
+```
+
+## Descriptive (or summary) statistics
+
+```{r}
+Chn_city_temp_1 <- terra::extract(ssp1, China_cities)
+
+Chn_city_temp_5 <- terra::extract(ssp5, China_cities)
+
+Chn_city_temp_1 <- Chn_city_temp_1 %>%
+  as_tibble() %>%
+  add_column(City = China_cities$city_name, .before = "Jan")
+
+Chn_city_temp_5 <- Chn_city_temp_5 %>%
+  as_tibble() %>%
+  add_column(City = China_cities$city_name, .before = "Jan")
+
+# is.data.frame(Chn_city_temp)
+
+# Chn_city_temp[[14]]
+
+Chn_city_temp_1 <- Chn_city_temp_1 %>%
+  pivot_longer(
+    cols = 3:14,
+    names_to = "Month",
+    values_to = "Temp"
+  )
+
+Chn_city_temp_5 <- Chn_city_temp_5 %>%
+  pivot_longer(
+    cols = 3:14,
+    names_to = "Month",
+    values_to = "Temp"
+  )
+
+substraction <- (Chn_city_temp_5$Temp - Chn_city_temp_1$Temp) * 10
+
+Chn_city_temp_substraction <- data.frame(ID = Chn_city_temp_1$ID, 
+                                         City = Chn_city_temp_1$City,
+                                         Month = Chn_city_temp_1$Month,
+                                         Temp_Subtracted_Value = substraction)
+
+Chn_city_temp_substraction <- Chn_city_temp_substraction %>%
+  mutate(Month = factor(Month, levels = c("Jan","Feb","Mar",
+                                          "Apr","May","Jun",
+                                          "Jul","Aug","Sep",
+                                          "Oct","Nov","Dec")))
+
+max_min_months <- Chn_city_temp_substraction %>%
+  group_by(Month) %>%
+  summarise(maxTemp=max(Temp_Subtracted_Value), minTemp=min(Temp_Subtracted_Value)) %>%
+  summarise(maxvalue=max(maxTemp), minvalue=min(minTemp))
+
+# plot(Chnoutline$geom)
+# 
+# ChnoutSIMPLE <- Chnoutline %>%
+#   st_simplify(., dTolerance = 1000) %>%
+#   st_geometry() %>%
+#   plot()
+# 
+# print(Chnoutline)
+# 
+# crs(ssp1)
+
+```
+
+## Mapping
+
+```{r}
+# Plot faceted histogram
+ggplot(Chn_city_temp_substraction, aes(x=Temp_Subtracted_Value, na.rm=TRUE)) +
+  geom_histogram(color="black", binwidth = 5) +
+  scale_x_continuous(breaks = seq(20, 70, by = 10)) +
+  #scale_y_continuous(breaks = seq(40, 50, by = 1)) +
+  labs(title="Ggplot2 faceted histogram of difference between SSP1 and SSP5", 
+       x="Temperature",
+       y="Frequency") +
+  facet_grid(Month ~ .) +
+  theme(plot.title = element_text(hjust = 0.5, size = 10),
+        axis.title = element_text(size = 7),
+        axis.text.x = element_text(size = 5),
+        axis.text.y = element_text(size = 5),
+        strip.text = element_text(size = 7))
+```
+
+```{r}
+ggplot(Chn_city_temp_substraction, 
+       aes(x = Month, y = Temp_Subtracted_Value, group= City, color = City)) +
+  geom_line() + 
+  labs(title = "Ggplot2 faceted line of difference between SSP1 and SSP5", 
+       x = "Month", 
+       y = "Temperature") +
+  theme(plot.title = element_text(hjust = 0.5, size = 10),
+        axis.title = element_text(size = 7),
+        axis.text.x = element_text(size = 5),
+        axis.text.y = element_text(size = 5),
+        strip.text = element_text(size = 7))
+
+```
+

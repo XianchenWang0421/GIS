@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+prac_1/Data/*
+prac_2/Data/*
+prac_3/Data/*
+prac_4/Data/*
