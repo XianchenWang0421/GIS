@@ -11,6 +11,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Read global gender inequality data
 
+### Dataset download link
+
+"All composite indices and components time series (1990-2021)" dataset: <https://hdr.undp.org/sites/default/files/2021-22_HDR/HDR21-22_Composite_indices_complete_time_series.csv>
+
+Spatial data of the World: <https://hub.arcgis.com/datasets/2b93b06dc0dc4e809d3c8db5cb96ba69_0/explore?location=-0.003112%2C0.000000%2C1.00>
+
 ```{r}
 library(sf)
 library(here)
@@ -70,5 +76,3 @@ ggplot(data = sdw_ggi_2) +
   )
 ggsave(here::here("prac_4","Map","World.jpeg"))
 ```
-
-
