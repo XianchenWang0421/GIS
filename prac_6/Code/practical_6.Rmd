@@ -73,6 +73,15 @@ tm_shape(BluePlaques) +
 
 
 ```{r}
+#remove duplicates
+library(tidyverse)
+
+library(sf)
+BluePlaques <- distinct(BluePlaques)
+```
+
+
+```{r}
 
 ```
 
