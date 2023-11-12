@@ -1,0 +1,78 @@
+---
+title: "practical_6"
+author: "Xianchen Wang"
+date: "2023-11-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#first library a few packages that we will use during the practical
+#note you may need to install them first...
+library(spatstat)
+library(here)
+library(sp)
+library(rgeos)
+library(maptools)
+library(tmap)
+library(sf)
+library(geojson)
+library(geojsonio)
+library(tmaptools)
+```
+
+
+```{r}
+##First, get the London Borough Boundaries
+LondonBoroughs <- st_read(here::here("prac_6", "Data", 
+                                     "statistical-gis-boundaries-london", 
+                                     "ESRI", 
+                                     "London_Borough_Excluding_MHW.shp"))
+```
+
+
+```{r}
+library(stringr)
+BoroughMap <- LondonBoroughs %>%
+  dplyr::filter(str_detect(GSS_CODE, "^E09")) %>%
+  st_transform(., 27700)
+
+qtm(BoroughMap)
+```
+
+
+```{r}
+summary(BoroughMap)
+```
+
+
+```{r}
+BluePlaques <- st_read(here::here("prac_6", "Data", 
+                                  "open-plaques-london-2018-04-08.geojson")) %>%
+  st_transform(.,27700)
+```
+
+
+```{r}
+summary(BluePlaques)
+```
+
+
+```{r}
+#plot the blue plaques in the city
+tmap_mode("plot")
+tm_shape(BoroughMap) +
+  tm_polygons(col = NA, alpha = 0.5) +
+tm_shape(BluePlaques) +
+  tm_dots(col = "blue")
+```
+
+
+```{r}
+
+```
+
